@@ -15,11 +15,11 @@ namespace SageIntegration
             Completed = 1
         }
 
-        public string BatchNo = "";
-        public string Username = "";
-        public string Password = "";
-        public string Company = "";
-        public string BatchDescription = "";
+        public string BatchNo { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public string Company { get; set; }
+        public string BatchDescription { get; set; }
 
         public static event BatchComplete Completed;
         public delegate void BatchComplete(List<SalesOrder> salesorders);
@@ -56,7 +56,6 @@ namespace SageIntegration
 
             return SalesOrder;
         }
-
         public void AddOrders(string[] salesorders)
         {
             foreach (string order in salesorders)
@@ -82,6 +81,12 @@ namespace SageIntegration
             string InitPath = SageKey.GetValue("Directory") + @"\Home";
             object retVal = new object();
 
+            // See if we can make a connection to Sage
+            if (Core.CanConnectToSage() == false)
+            {
+                // We can't connect to Sage 100
+            }
+
             // Open Initial PVX object
             using (DispatchObject pvx = new DispatchObject("ProvideX.Script"))
             {
@@ -94,25 +99,37 @@ namespace SageIntegration
                     // Set Username and password
                     // Set Company, and set the date
                     // Basic setup for the oSS object
-                    oSS.InvokeMethod("nSetUser", Username, Password);
+                    
+
+                    if (Core.SageObject.Process(oSS.InvokeMethod("nSetCompany", Company), oSS).ReturnCode == (int)Core.ReturnCode.Failed)
+                    {
+                        // I'm returning a null here to break anything
+                        // that doesn't expect a null. This isn't something
+                        // I should run into unless I'm using incorrect
+                        // company codes.
+                        return null;
+                    }
+
+                    if (Core.SageObject.Process(oSS.InvokeMethod("nSetUser", Username, Password), oSS).ReturnCode == (int)Core.ReturnCode.Failed)
+                    {
+                        // Login Failure
+                        // Check Username and Password
+                        return null;
+                    }
                     oSS.InvokeMethod("nLogon");
-                    oSS.InvokeMethod("nSetCompany", Company);
+
+
                     oSS.InvokeMethod("nSetDate", "S/O", DateTime.Today.ToString("yyyyMMdd"));
                     oSS.InvokeMethod("nSetModule", "A/R");
 
                     // Set task ID to oSS
                     int TaskID = (int)oSS.InvokeMethod("nLookupTask", "SO_SalesOrder_ui");
-                    retVal = oSS.InvokeMethod("nSetProgram", TaskID);
-
-                    // SafeProcess just checks the last error message value and prints it to
-                    // the debug output. In the future, I will have it post this to an error log
-                    SafeProcess(oSS.InvokeMethod("nSetProgram", TaskID), oSS);
+                    Core.SageObject.Process(oSS.InvokeMethod("nSetProgram", TaskID), oSS);
 
                     // Loop through the orders
                     // This saves time over opening the oSS and PVX object over and over again
                     foreach (SalesOrder Order in _salesorders)
                     {
-                        // CurrentShipment.Packages.FindIndex(a => a == CurrentPackage)
                         if (StatusChanged != null)
                         {
                             StatusChanged(Status.Working, _salesorders.Count(), (_salesorders.FindIndex(a => a == Order) + 1));
@@ -122,24 +139,37 @@ namespace SageIntegration
                         using (DispatchObject so_order = new DispatchObject(pvx.InvokeMethod("NewObject", "SO_SalesOrder_bus", oSS.GetObject())))
                         {
                             // Get the next salesorder number. 
-                            object[] nextOrderNum = new object[] { "" };
-                            SafeProcess(so_order.InvokeMethodByRef("nGetNextSalesOrderNo", nextOrderNum), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetKey", nextOrderNum), so_order);
+                            object[] oNextSalesOrder = new object[] { "" };
+                            Core.SageObject.Process(so_order.InvokeMethodByRef("nGetNextSalesOrderNo", oNextSalesOrder), so_order);
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetKey", oNextSalesOrder), so_order);
                             // Update the order objerct to the correct number
-                            Order.SalesOrderNo = (string)nextOrderNum[0];
+                            Order.SalesOrderNo = (string)oNextSalesOrder[0];
 
                             // Set Customer name and the ARDivision. We always use 00 as the ARDivision
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "ARDivisionNo$", "00"), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "CustomerNo$", Order.CustomerNo), so_order);
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ARDivisionNo$", "00"), so_order);
 
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "OrderDate$", Order.OrderDate.ToString("yyyyMMdd")), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "ShipExpireDate$", Order.RequiredDate.ToString("yyyyMMdd")), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "ShipToZipcode$", Order.ShipToZipcode), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "ShipToName$", Order.ShipToName), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "ShipToAddress1$", Order.ShipToAddress1), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "ShipToAddress2$", Order.ShipToAddress2), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "CustomerPONo$", Order.CustomerPONo), so_order);
-                            SafeProcess(so_order.InvokeMethod("nSetValue", "Comment$", Order.GiftHeader), so_order);
+                            if (Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "CustomerNo$", Order.CustomerNo), so_order).ReturnCode == (int)Core.ReturnCode.Failed)
+                            {
+                                // Could not set this CustomerNo
+                                // We'll see if any of the other orders
+                                // can process
+                                continue;
+                            }
+
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "OrderDate$", Order.OrderDate.ToString("yyyyMMdd")), so_order);
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipExpireDate$", Order.RequiredDate.ToString("yyyyMMdd")), so_order);
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToZipcode$", Order.ShipToZipcode), so_order);
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToName$", Order.ShipToName), so_order);
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToAddress1$", Order.ShipToAddress1), so_order);
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToAddress2$", Order.ShipToAddress2), so_order);
+
+                            if (Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "CustomerPONo$", Order.CustomerPONo), so_order).ReturnCode == (int)Core.ReturnCode.SuccessWithError)
+                            {
+                                // We could trap duplicate PO#s here. The Error Message is: 
+                                // This customer PO number already exists on one or more sales orders or invoices.
+                            }
+
+                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "Comment$", Order.GiftHeader), so_order);
 
                             // Loop through each lineitem in the order
                             foreach (LineItem Line in Order.LineItems())
@@ -147,69 +177,67 @@ namespace SageIntegration
                                 // Open object for Line item
                                 using (DispatchObject so_line = new DispatchObject(so_order.GetProperty("oLines")))
                                 {
-                                    //SafeProcess(so_line.InvokeMethod("nAddLine"), so_line);
-                                    retVal = so_line.InvokeMethod("nAddLine");
+                                    Core.SageObject.Process(so_line.InvokeMethod("nAddLine"), so_line);
                                     // Set Item Code
-                                    SafeProcess(so_line.InvokeMethod("nSetValue", "ItemCode$", Line.ItemCode), so_line);
-                                    // Set Line Number
-                                    //SafeProcess(so_line.InvokeMethod("nSetValue", "UDF_LINENO$", Line.LineNo), so_line);
-                                    // Set Item Quantity
-                                    SafeProcess(so_line.InvokeMethod("nSetValue", "QuantityOrdered", Line.Quantity), so_line);
-                                    // Set Monogram
-                                    SafeProcess(so_line.InvokeMethod("nSetValue", "UDF_PERSONALIZE1$", Line.Monogram), so_line);
+                                    if (Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "ItemCode$", Line.ItemCode), so_line).ReturnCode == (int)Core.ReturnCode.Failed)
+                                    {
+                                        // Line failed to post
+                                        continue;
+                                    }
 
-                                    SafeProcess(so_line.InvokeMethod("nSetValue", "UDF_GIFTMESSAGE$", Order.GiftMessage), so_line);
+                                    // Set Quantity
+                                    Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "QuantityOrdered", Line.Quantity), so_line);
+                                    // Set Monogram
+                                    Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "UDF_PERSONALIZE1$", Line.Monogram), so_line);
+                                    // Set GiftMessage
+                                    Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "UDF_GIFTMESSAGE$", Order.GiftMessage), so_line);
 
                                     //Set LineKey
                                     object[] oLineKey = new object[] { "LineKey", "" };
-                                    SafeProcess(so_line.InvokeMethodByRef("nGetValue", oLineKey), so_line);
+                                    Core.SageObject.Process(so_line.InvokeMethodByRef("nGetValue", oLineKey), so_line);
                                     Line.LineKey = oLineKey[1].ToString();
 
                                     // Set Shipvia
                                     if (Order.Shipvia != string.Empty)
                                     {
-                                        SafeProcess(so_order.InvokeMethod("nSetValue", "ShipVia$", Order.Shipvia), so_order);
+                                        Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipVia$", Order.Shipvia), so_order);
                                     }
                                     // Set Descriptions
                                     if (Line.Description != string.Empty)
                                     {
                                         string Description = string.Empty;
                                         // Read Create an object to hold the response
-                                        object[] getValueParam2 = new object[] { "ItemCodeDesc$", "" };
+                                        object[] oDescription = new object[] { "ItemCodeDesc$", "" };
 
                                         // Read Into the object
-                                        SafeProcess(so_line.InvokeMethodByRef("nGetValue", getValueParam2), so_line);
+                                        Core.SageObject.Process(so_line.InvokeMethodByRef("nGetValue", oDescription), so_line);
 
                                         // Retreive our description
-                                        Description = getValueParam2[1].ToString();
+                                        Description = oDescription[1].ToString();
 
                                         // Append the custom Description text and write the record
                                         Description = Description + Environment.NewLine + Line.Description;
-                                        SafeProcess(so_line.InvokeMethod("nSetValue", "ItemCodeDesc$", Description), so_line);
+                                        Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "ItemCodeDesc$", Description), so_line);
 
                                     }
 
-                                    retVal = so_line.InvokeMethod("nWrite");
-                                    if ((int)retVal != 1)
+                                    if (Core.SageObject.Process(so_line.InvokeMethod("nWrite"), so_line).ReturnCode == (int)Core.ReturnCode.Failed)
                                     {
-                                        // Line couldn't be added, or there was an issue with it. Handle the error message and continue
-                                        // to the next line item
                                         continue;
                                     }
 
                                 }
                             }
 
-                            retVal = so_order.InvokeMethod("nWrite");
-                            if ((int)retVal != 1) { Debug.WriteLine(so_order.GetProperty("sLastErrorMsg")); }
+                            if (Core.SageObject.Process(so_order.InvokeMethod("nWrite"), so_order).ReturnCode == (int)Core.ReturnCode.Failed)
+                            {
+                                // Order failed to post
+                                // Clear the SalesOrderNo because it is not valid.
+                                Order.SalesOrderNo = "";
+                            }
                             else
                             {
                                 if (OrderPosted != null) { OrderPosted(Order); }
-
-                                if (Order.ID != 0)
-                                {
-
-                                }
                             }
                         }
 
@@ -526,12 +554,13 @@ namespace SageIntegration
             retVal = Method;
             if ((int)retVal != 1)
             {
-                // Output error to error log in future
-                //Debug.WriteLine(Object.GetProperty("sLastErrorMsg").ToString());
+                Debug.WriteLine(Object.GetProperty("sLastErrorMsg"));
             }
 
             return (int)retVal;
         }
+
+
 
     }
 
