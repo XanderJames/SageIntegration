@@ -30,7 +30,7 @@ namespace SageIntegration
         public string Monogram
         {
             get { return _Monogram; }
-            set { _Monogram = LimitString(value, 200); }
+            set { _Monogram = LimitString(value, 1000); }
         }
 
         public string LimitString(string Input, int Length)
@@ -46,8 +46,6 @@ namespace SageIntegration
             }
 
         }
-
-        // Plans to move this to a .dll and use it everywhere
 
         // ReadValue is a wrapper to avoid using System.Reflection
         // when reading edi maps.

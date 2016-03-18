@@ -14,12 +14,43 @@ namespace SageIntegration
             Working = 0,
             Completed = 1
         }
+        
+        private string _BatchNo;
+        private string _Username;
+        private string _Password;
+        private string _Company;
+        private string _BatchDescription;
 
-        public string BatchNo { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
-        public string Company { get; set; }
-        public string BatchDescription { get; set; }
+        public string BatchNo
+        {
+            get { return _BatchNo; }
+            set { _BatchNo = TextUtilities.LimitString(value, 5); }
+        }
+        
+        public string Username
+        {
+            get { return _Username; }
+            set { _Username = TextUtilities.LimitString(value, 60); }
+        }
+
+        public string Password
+        {
+            get { return _Password; }
+            set { _Password = TextUtilities.LimitString(value, 60); }
+        }
+
+        public string Company
+        {
+            get { return _Company; }
+            set { _Company = TextUtilities.LimitString(value, 3); }
+        }
+
+        public string BatchDescription
+        {
+            get { return _BatchDescription; }
+            set { _BatchDescription = TextUtilities.LimitString(value, 30); }
+        }
+
 
         public static event BatchComplete Completed;
         public delegate void BatchComplete(List<SalesOrder> salesorders);
@@ -41,6 +72,7 @@ namespace SageIntegration
             this.BatchNo = BatchNo;
             this.BatchDescription = BatchDescription;
         }
+
 
         public List<SalesOrder> SalesOrders()
         {
@@ -66,7 +98,7 @@ namespace SageIntegration
             }
         }
 
-        public void MarkError(SalesOrder salesorder)
+        public void ErrorOrder(SalesOrder salesorder)
         {
             _salesorders.Remove(salesorder);
             _errorsalesorders.Add(salesorder);
@@ -181,7 +213,8 @@ namespace SageIntegration
                                     // Set Item Code
                                     if (Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "ItemCode$", Line.ItemCode), so_line).ReturnCode == (int)Core.ReturnCode.Failed)
                                     {
-                                        // Line failed to post
+                                        // Line failed to post. We are going to
+                                        // continue to see if any of the lines post.
                                         continue;
                                     }
 

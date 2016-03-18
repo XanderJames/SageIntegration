@@ -30,6 +30,8 @@ namespace SageIntegration
         private string _ShipToCountry = string.Empty;
         private string _CustomerNo = string.Empty;
 
+        private string _CustomerPONo;
+
         public int TransactionSet = 0;
         public int ID = 0;
 
@@ -41,7 +43,6 @@ namespace SageIntegration
         public string PaymentTender = string.Empty;
         public string ReservationNo = string.Empty;
 
-        public string CustomerPONo = string.Empty;
         public string CustomerOrderNo = string.Empty;
         public DateTime ProcessDate = DateTime.Now;
         public DateTime RequiredDate = DateTime.Now;
@@ -76,42 +77,32 @@ namespace SageIntegration
         public string SalesOrderNo
         {
             get { return _SalesOrderNo; }
-            set { _SalesOrderNo = LimitString(value, 7); }
+            set { _SalesOrderNo = TextUtilities.LimitString(value, 7); }
         }
 
         public SalesOrder(string CustomerNo, string CustomerPONo)
         {
             this.CustomerNo = CustomerNo;
-            this.CustomerPONo = TextUtilities.Left(CustomerPONo, 15);
+        }
+
+        public string CustomerPONo
+        {
+            get { return _CustomerPONo; }
+            set { _CustomerPONo = TextUtilities.LimitString(value, 15); }
         }
 
         public SalesOrder() { }
 
-        public string LimitString(string Input, int Length)
-        {
-            Input = Regex.Replace(Input, @"[^\xA0-\xFF\u0000-\u007E€]", "?").Trim();
-
-            if (Input.Length < Length)
-            {
-                return Input;
-            }
-            else
-            {
-                return Input.Substring(0, Length);
-            }
-
-        }
-
         public string CustomerNo
         {
             get { return _CustomerNo; }
-            set { _CustomerNo = LimitString(value, 20); }
+            set { _CustomerNo = TextUtilities.LimitString(value, 20); }
         }
 
         public string ShipToName
         {
             get { return _ShipToName; }
-            set { _ShipToName = LimitString(value, 30); }
+            set { _ShipToName = TextUtilities.LimitString(value, 30); }
         }
 
         public string ShipToCompany
@@ -123,32 +114,32 @@ namespace SageIntegration
         public string ShipToAddress1
         {
             get { return _ShipToAddress1; }
-            set { _ShipToAddress1 = LimitString(value, 30); }
+            set { _ShipToAddress1 = TextUtilities.LimitString(value, 30); }
         }
 
         public string ShipToAddress2
         {
             get { return _ShipToAddress2; }
-            set { _ShipToAddress2 = LimitString(value, 30); }
+            set { _ShipToAddress2 = TextUtilities.LimitString(value, 30); }
 
         }
 
         public string ShipToAddress3
         {
             get { return _ShipToAddress3; }
-            set { _ShipToAddress3 = LimitString(value, 30); }
+            set { _ShipToAddress3 = TextUtilities.LimitString(value, 30); }
         }
 
         public string ShipToCity
         {
             get { return _ShipToCity; }
-            set { _ShipToCity = LimitString(value, 20); }
+            set { _ShipToCity = TextUtilities.LimitString(value, 20); }
         }
 
         public string ShipToState
         {
             get { return _ShipToState; }
-            set { _ShipToState = LimitString(value, 2); }
+            set { _ShipToState = TextUtilities.LimitString(value, 2); }
         }
 
         public string ShipToZipcode
@@ -184,7 +175,7 @@ namespace SageIntegration
         public string ShipToCountry
         {
             get { return _ShipToCountry; }
-            set { _ShipToCountry = LimitString(value, 3); }
+            set { _ShipToCountry = TextUtilities.LimitString(value, 3); }
         }
 
         public List<LineItem> LineItems()
@@ -201,7 +192,7 @@ namespace SageIntegration
             return LineItem;
         }
 
-        public void MarkError(LineItem lineitem)
+        public void ErrorLine(LineItem lineitem)
         {
             _lineitems.Remove(lineitem);
             _errorlineitems.Add(lineitem);
