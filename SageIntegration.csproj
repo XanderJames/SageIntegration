@@ -45,11 +45,18 @@
     </Compile>
     <Compile Include="DispatchObject.cs" />
     <Compile Include="Invoice.cs" />
+    <Compile Include="ItemCode.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="LineItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SalesOrder.cs" />
+    <Compile Include="Shipment.cs" />
     <Compile Include="SO_OrderBatch.cs" />
     <Compile Include="TextUtilities.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="SalesOrder\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

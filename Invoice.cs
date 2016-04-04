@@ -145,25 +145,7 @@ namespace SageIntegration
             }
         }
 
-        public static void InvoiceUpdate(string invoiceString)
-        {
-            string sqlString;
-            int iCount;
-
-            sqlString = "UPDATE SalesOrder SET SalesOrder.INV_Sent = True "
-                + " WHERE SalesOrder.SalesOrderNo IN(" + invoiceString + ")";
-
-            using (OleDbConnection ediConnection = new OleDbConnection(@"provider=Microsoft.ACE.OLEDB.12.0;data source=\\SGC-APPLICATION\EDIService\bin\EDI.accdb"))
-            {
-                using (OleDbCommand Command = new OleDbCommand(sqlString, ediConnection))
-                {
-                    ediConnection.Open();
-                    iCount = Command.ExecuteNonQuery();
-                }
-            }
-
-
-        }
+        
 
     }
 }
