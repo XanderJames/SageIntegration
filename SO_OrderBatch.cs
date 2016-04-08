@@ -21,6 +21,8 @@ namespace SageIntegration
         private string _Company;
         private string _BatchDescription;
 
+        // We want to limit these string lengths
+        // to something that Sage 100 can take
         public string BatchNo
         {
             get { return _BatchNo; }
@@ -62,6 +64,9 @@ namespace SageIntegration
         public delegate void OrderPostedEvent(SalesOrder salesorder);
 
         private List<SalesOrder> _salesorders = new List<SalesOrder>();
+
+        // In the future, push the orders with errors into a 
+        // seperate list for display
         private List<SalesOrder> _errorsalesorders = new List<SalesOrder>();
 
         public SO_OrderBatch(string Company = "", string Username = "", string Password = "", string BatchNo = "", string BatchDescription = "")
@@ -117,6 +122,8 @@ namespace SageIntegration
             if (Core.CanConnectToSage() == false)
             {
                 // We can't connect to Sage 100
+                // Return null to hopefully break things
+                return null;
             }
 
             // Open Initial PVX object
@@ -190,10 +197,30 @@ namespace SageIntegration
 
                             Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "OrderDate$", Order.OrderDate.ToString("yyyyMMdd")), so_order);
                             Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipExpireDate$", Order.RequiredDate.ToString("yyyyMMdd")), so_order);
-                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToZipcode$", Order.ShipToZipcode), so_order);
-                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToName$", Order.ShipToName), so_order);
-                            Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToAddress1$", Order.ShipToAddress1), so_order);
+
+                            if (Order.StoreNo != string.Empty)
+                            {
+                                Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToCode$", Order.StoreNo), so_order);
+                            }
+
+                            if (Order.ShipToZipcode != string.Empty)
+                            {
+                                Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToZipcode$", Order.ShipToZipcode), so_order);
+                            }
+
+                            if (Order.ShipToName != string.Empty)
+                            {
+                                Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToName$", Order.ShipToName), so_order);
+                            }
+                            
+                            if (Order.ShipToAddress1 != string.Empty)
+                            {
+                                Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToAddress1$", Order.ShipToAddress1), so_order);
+                            }
+
+                            // We want this to override the address in sage, if this is blank
                             Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "ShipToAddress2$", Order.ShipToAddress2), so_order);
+
 
                             if (Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "CustomerPONo$", Order.CustomerPONo), so_order).ReturnCode == (int)Core.ReturnCode.SuccessWithError)
                             {
@@ -201,6 +228,7 @@ namespace SageIntegration
                                 // This customer PO number already exists on one or more sales orders or invoices.
                             }
 
+                            // Eventually move GiftHeader to Comment
                             Core.SageObject.Process(so_order.InvokeMethod("nSetValue", "Comment$", Order.GiftHeader), so_order);
 
                             // Loop through each lineitem in the order
@@ -221,6 +249,9 @@ namespace SageIntegration
                                     // Set Quantity
                                     Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "QuantityOrdered", Line.Quantity), so_line);
                                     // Set Monogram
+                                    // I only ever need 1000 characters,
+                                    // So I always use UDF_PERSONALIZE1
+
                                     Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "UDF_PERSONALIZE1$", Line.Monogram), so_line);
                                     // Set GiftMessage
                                     Core.SageObject.Process(so_line.InvokeMethod("nSetValue", "UDF_GIFTMESSAGE$", Order.GiftMessage), so_line);
